@@ -1,11 +1,18 @@
 #include "MPC.h"
+#include <math.h>
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
-#include "Eigen-3.3/Eigen/Core"
+#include "../../src/Eigen-3.3/Eigen/Core"
+#include "../../src/Eigen-3.3/Eigen/QR"
+#include "matplotlibcpp.h"
+
+namespace plt = matplotlibcpp;
 
 using CppAD::AD;
 
-// TODO: Set the timestep length and duration
+// We set the number of timesteps to 25
+// and the timestep evaluation frequency or evaluation
+// period to 0.05.
 size_t N = 25;
 double dt = 0.05;
 
@@ -20,8 +27,14 @@ double dt = 0.05;
 //
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
+
+// Both the reference cross track and orientation errors are 0.
+// The reference velocity is set to 40 mph.
 double ref_v = 40;
 
+// The solver takes all the state variables and actuator
+// variables in a singular vector. Thus, we should to establish
+// when one variable starts and another ends to make our lifes easier.
 size_t x_start = 0;
 size_t y_start = x_start + N;
 size_t psi_start = y_start + N;
@@ -33,11 +46,13 @@ size_t a_start = delta_start + N - 1;
 
 class FG_eval {
  public:
-  // Fitted polynomial coefficients
   Eigen::VectorXd coeffs;
+  // Coefficients of the fitted polynomial.
   FG_eval(Eigen::VectorXd coeffs) { this->coeffs = coeffs; }
 
   typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
+  // `fg` is a vector containing the cost and constraints.
+  // `vars` is a vector containing the variable values (state & actuators).
   void operator()(ADvector& fg, const ADvector& vars) {
     // The cost is stored is the first element of `fg`.
     // Any additions to the cost should be added to `fg[0]`.
@@ -127,40 +142,36 @@ class FG_eval {
 };
 
 //
-// MPC class definition implementation.
+// MPC class definition
 //
+
 MPC::MPC() {}
 MPC::~MPC() {}
 
-vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
-  bool ok = true;
+vector<double> MPC::Solve(Eigen::VectorXd x0, Eigen::VectorXd coeffs) {
   size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
-  // TODO: Set the number of model variables (includes both states and inputs).
-  // For example: If the state is a 4 element vector, the actuators is a 2
-  // element vector and there are 10 timesteps. The number of variables is:
-  // 4 * 10 + 2 * 9
-  // 6 or 4? 
+  double x = x0[0];
+  double y = x0[1];
+  double psi = x0[2];
+  double v = x0[3];
+  double cte = x0[4];
+  double epsi = x0[5];
+
+  // number of independent variables
+  // N timesteps == N - 1 actuations
   size_t n_vars = N * 6 + (N - 1) * 2;
-  // TODO: Set the number of constraints
+  // Number of constraints
   size_t n_constraints = N * 6;
 
   // Initial value of the independent variables.
-  // SHOULD BE 0 besides initial state.
+  // Should be 0 except for the initial values.
   Dvector vars(n_vars);
   for (int i = 0; i < n_vars; i++) {
-    vars[i] = 0;
+    vars[i] = 0.0;
   }
   // Set the initial variable values
-  double x, y, psi, v, cte, epsi;
-  x = state[0];
-  y = state[1];
-  psi = state[2];
-  v = state[3];
-  cte = state[4];
-  epsi = state[5];
-
   vars[x_start] = x;
   vars[y_start] = y;
   vars[psi_start] = psi;
@@ -168,9 +179,10 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   vars[cte_start] = cte;
   vars[epsi_start] = epsi;
 
+  // Lower and upper limits for x
   Dvector vars_lowerbound(n_vars);
   Dvector vars_upperbound(n_vars);
-  // TODO: Set lower and upper limits for variables.
+
   // Set all non-actuators upper and lowerlimits
   // to the max negative and positive values.
   for (int i = 0; i < delta_start; i++) {
@@ -185,6 +197,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vars_lowerbound[i] = -0.436332;
     vars_upperbound[i] = 0.436332;
   }
+
   // Acceleration/decceleration upper and lower limits.
   // NOTE: Feel free to change this to something else.
   for (int i = a_start; i < n_vars; i++) {
@@ -192,8 +205,9 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vars_upperbound[i] = 1.0;
   }
 
-  // Lower and upper limits for the constraints
-  // Should be 0 besides initial state.
+  // Lower and upper limits for constraints
+  // All of these should be 0 except the initial
+  // state indices.
   Dvector constraints_lowerbound(n_constraints);
   Dvector constraints_upperbound(n_constraints);
   for (int i = 0; i < n_constraints; i++) {
@@ -214,26 +228,14 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   constraints_upperbound[cte_start] = cte;
   constraints_upperbound[epsi_start] = epsi;
 
-  // object that computes objective and constraints
+  // Object that computes objective and constraints
   FG_eval fg_eval(coeffs);
 
-  //
-  // NOTE: You don't have to worry about these options
-  //
-  // options for IPOPT solver
+  // options
   std::string options;
-  // Uncomment this if you'd like more print information
   options += "Integer print_level  0\n";
-  // NOTE: Setting sparse to true allows the solver to take advantage
-  // of sparse routines, this makes the computation MUCH FASTER. If you
-  // can uncomment 1 of these and see if it makes a difference or not but
-  // if you uncomment both the computation time should go up in orders of
-  // magnitude.
   options += "Sparse  true        forward\n";
   options += "Sparse  true        reverse\n";
-  // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
-  // Change this as you see fit.
-  options += "Numeric max_cpu_time          0.5\n";
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
@@ -243,20 +245,133 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
       options, vars, vars_lowerbound, vars_upperbound, constraints_lowerbound,
       constraints_upperbound, fg_eval, solution);
 
+  //
   // Check some of the solution values
+  //
+  bool ok = true;
   ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
 
-  // Cost
   auto cost = solution.obj_value;
   std::cout << "Cost " << cost << std::endl;
-
-  // TODO: Return the first actuator values. The variables can be accessed with
-  // `solution.x[i]`.
-  //
-  // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
-  // creates a 2 element double vector.
   return {solution.x[x_start + 1],   solution.x[y_start + 1],
           solution.x[psi_start + 1], solution.x[v_start + 1],
           solution.x[cte_start + 1], solution.x[epsi_start + 1],
           solution.x[delta_start],   solution.x[a_start]};
+}
+
+//
+// Helper functions to fit and evaluate polynomials.
+//
+
+// Evaluate a polynomial.
+double polyeval(Eigen::VectorXd coeffs, double x) {
+  double result = 0.0;
+  for (int i = 0; i < coeffs.size(); i++) {
+    result += coeffs[i] * pow(x, i);
+  }
+  return result;
+}
+
+// Fit a polynomial.
+// Adapted from
+// https://github.com/JuliaMath/Polynomials.jl/blob/master/src/Polynomials.jl#L676-L716
+Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
+                        int order) {
+  assert(xvals.size() == yvals.size());
+  assert(order >= 1 && order <= xvals.size() - 1);
+  Eigen::MatrixXd A(xvals.size(), order + 1);
+
+  for (int i = 0; i < xvals.size(); i++) {
+    A(i, 0) = 1.0;
+  }
+
+  for (int j = 0; j < xvals.size(); j++) {
+    for (int i = 0; i < order; i++) {
+      A(j, i + 1) = A(j, i) * xvals(j);
+    }
+  }
+
+  auto Q = A.householderQr();
+  auto result = Q.solve(yvals);
+  return result;
+}
+
+int main() {
+  MPC mpc;
+  int iters = 50;
+
+  Eigen::VectorXd ptsx(2);
+  Eigen::VectorXd ptsy(2);
+  ptsx << -100, 100;
+  ptsy << -1, -1;
+
+  // The polynomial is fitted to a straight line so a polynomial with
+  // order 1 is sufficient.
+  auto coeffs = polyfit(ptsx, ptsy, 1);
+
+  // NOTE: free feel to play around with these
+  double x = -1;
+  double y = 10;
+  double psi = 0;
+  double v = 10;
+  // The cross track error is calculated by evaluating at polynomial at x, f(x)
+  // and subtracting y.
+  double cte = polyeval(coeffs, x) - y;
+  // Due to the sign starting at 0, the orientation error is -f'(x).
+  // derivative of coeffs[0] + coeffs[1] * x -> coeffs[1]
+  double epsi = psi - atan(coeffs[1]);
+
+  Eigen::VectorXd state(6);
+  state << x, y, psi, v, cte, epsi;
+
+  std::vector<double> x_vals = {state[0]};
+  std::vector<double> y_vals = {state[1]};
+  std::vector<double> psi_vals = {state[2]};
+  std::vector<double> v_vals = {state[3]};
+  std::vector<double> cte_vals = {state[4]};
+  std::vector<double> epsi_vals = {state[5]};
+  std::vector<double> delta_vals = {};
+  std::vector<double> a_vals = {};
+
+  for (size_t i = 0; i < iters; i++) {
+    std::cout << "Iteration " << i << std::endl;
+
+    auto vars = mpc.Solve(state, coeffs);
+
+    x_vals.push_back(vars[0]);
+    y_vals.push_back(vars[1]);
+    psi_vals.push_back(vars[2]);
+    v_vals.push_back(vars[3]);
+    cte_vals.push_back(vars[4]);
+    epsi_vals.push_back(vars[5]);
+
+    delta_vals.push_back(vars[6]);
+    a_vals.push_back(vars[7]);
+
+    state << vars[0], vars[1], vars[2], vars[3], vars[4], vars[5];
+    std::cout << "x = " << vars[0] << std::endl;
+    std::cout << "y = " << vars[1] << std::endl;
+    std::cout << "psi = " << vars[2] << std::endl;
+    std::cout << "v = " << vars[3] << std::endl;
+    std::cout << "cte = " << vars[4] << std::endl;
+    std::cout << "epsi = " << vars[5] << std::endl;
+    std::cout << "delta = " << vars[6] << std::endl;
+    std::cout << "a = " << vars[7] << std::endl;
+    std::cout << std::endl;
+  }
+
+  // Plot values
+  // NOTE: feel free to play around with this.
+  // It's useful for debugging!
+  plt::subplot(3, 1, 1);
+  plt::title("CTE");
+  plt::plot(cte_vals);
+  plt::subplot(3, 1, 2);
+  plt::title("Delta (Radians)");
+  plt::plot(delta_vals);
+  plt::subplot(3, 1, 3);
+  plt::title("Velocity");
+  plt::plot(v_vals);
+
+  plt::show();
 }

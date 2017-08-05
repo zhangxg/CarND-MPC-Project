@@ -11,6 +11,7 @@
 
 // for convenience
 using json = nlohmann::json;
+using namespace std;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -91,6 +92,25 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+          // fit a third polynomial, used as the planned trajectory
+          // calculate the cte and epsi
+          Eigen::VectorXd xvals, yvals;
+          for (int i=0; i<ptsx.size(); ++i) {
+            xvals << ptsx[i];
+          }
+          for (int i=0; i<ptsy.size(); ++i) {
+            yvals << ptsy[i];
+          } 
+          // Eigen::VectorXd xvals(ptsx.data());
+          // Eigen::VectorXd yvals(ptsy.data());
+          auto coeffs = polyfit(xvals, yvals, 3);
+          double cte = polyeval(coeffs, px) - py;
+          double epsi = psi - atan(coeffs[1]);
+          cout << "fit done" << endl;
+
+          // init state
+          Eigen::VectorXd state(6);
+          state << px, py, psi, v, cte, epsi;
 
           /*
           * TODO: Calculate steering angle and throttle using MPC.
@@ -98,8 +118,12 @@ int main() {
           * Both are in between [-1, 1].
           *
           */
+          auto vars = mpc.Solve(state, coeffs);
+
           double steer_value;
           double throttle_value;
+          steer_value = vars[6];
+          throttle_value = vars[7];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -113,6 +137,8 @@ int main() {
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
+          mpc_x_vals.push_back(vars[0]);
+          mpc_y_vals.push_back(vars[1]);
 
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
@@ -123,11 +149,13 @@ int main() {
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
+          next_x_vals.push_back(vars[0]);
+          next_y_vals.push_back(polyeval(coeffs, vars[0]));
+
+          cout << "initialize done" << endl;
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
-
-
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           std::cout << msg << std::endl;
           // Latency
