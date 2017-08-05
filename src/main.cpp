@@ -110,12 +110,17 @@ int main() {
           // } 
           Eigen::VectorXd xvals = Eigen::VectorXd::Map(ptsx.data(), ptsx.size());
           Eigen::VectorXd yvals = Eigen::VectorXd::Map(ptsy.data(), ptsy.size());
+          cout << "vectorxd: ";
+          for (int i = 0; i < xvals.size(); ++i){
+            cout << xvals[i] << "-";
+          }
+
           // Eigen::VectorXd xvals(ptsx.data());
           // Eigen::VectorXd yvals(ptsy.data());
-          auto coeffs = polyfit(xvals, yvals, 3);
+          auto coeffs = polyfit(xvals, yvals, 1);
           double cte = polyeval(coeffs, px) - py;
           double epsi = psi - atan(coeffs[1]);
-
+          cout << "cte/epsi" << cte << "/" << epsi << endl;
           // init state
           Eigen::VectorXd state(6);
           state << px, py, psi, v, cte, epsi;
@@ -127,6 +132,7 @@ int main() {
           *
           */
           auto vars = mpc.Solve(state, coeffs);
+          // cout << vars << endl;
 
           double steer_value;
           double throttle_value;
