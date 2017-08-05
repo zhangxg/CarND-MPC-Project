@@ -94,19 +94,27 @@ int main() {
           double v = j[1]["speed"];
           // fit a third polynomial, used as the planned trajectory
           // calculate the cte and epsi
-          Eigen::VectorXd xvals, yvals;
-          for (int i=0; i<ptsx.size(); ++i) {
-            xvals << ptsx[i];
-          }
-          for (int i=0; i<ptsy.size(); ++i) {
-            yvals << ptsy[i];
-          } 
+          // Eigen::VectorXd xvals(6);
+          // Eigen::VectorXd yvals(6);
+          // // x waypoint coordinates
+          // xvals << 9.261977, -2.06803, -19.6663, -36.868, -51.6263, -66.3482;
+          // // y waypoint coordinates
+          // yvals << 5.17, -2.25, -15.306, -29.46, -42.85, -57.6116;
+          // int size = ptsx.size();
+          // Eigen::VectorXd xvals(size), yvals(size);
+          // for (int i=0; i<ptsx.size(); ++i) {
+          //   xvals << ptsx[i];
+          // }
+          // for (int i=0; i<ptsy.size(); ++i) {
+          //   yvals << ptsy[i];
+          // } 
+          Eigen::VectorXd xvals = Eigen::VectorXd::Map(ptsx.data(), ptsx.size());
+          Eigen::VectorXd yvals = Eigen::VectorXd::Map(ptsy.data(), ptsy.size());
           // Eigen::VectorXd xvals(ptsx.data());
           // Eigen::VectorXd yvals(ptsy.data());
           auto coeffs = polyfit(xvals, yvals, 3);
           double cte = polyeval(coeffs, px) - py;
           double epsi = psi - atan(coeffs[1]);
-          cout << "fit done" << endl;
 
           // init state
           Eigen::VectorXd state(6);
@@ -151,8 +159,6 @@ int main() {
           // the points in the simulator are connected by a Yellow line
           next_x_vals.push_back(vars[0]);
           next_y_vals.push_back(polyeval(coeffs, vars[0]));
-
-          cout << "initialize done" << endl;
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
