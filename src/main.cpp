@@ -117,9 +117,10 @@ int main() {
 
           // Eigen::VectorXd xvals(ptsx.data());
           // Eigen::VectorXd yvals(ptsy.data());
-          auto coeffs = polyfit(xvals, yvals, 1);
+          auto coeffs = polyfit(xvals, yvals, 3);
           double cte = polyeval(coeffs, px) - py;
           double epsi = psi - atan(coeffs[1]);
+          // double epsi = - atan(coeffs[1]);
           cout << "cte/epsi" << cte << "/" << epsi << endl;
           // init state
           Eigen::VectorXd state(6);
@@ -136,8 +137,8 @@ int main() {
 
           double steer_value;
           double throttle_value;
-          steer_value = vars[6];
-          throttle_value = vars[7];
+          steer_value = vars[0];
+          throttle_value = vars[1];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
