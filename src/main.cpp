@@ -92,87 +92,66 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
-          // fit a third polynomial, used as the planned trajectory
-          // calculate the cte and epsi
-          // Eigen::VectorXd xvals(6);
-          // Eigen::VectorXd yvals(6);
-          // // x waypoint coordinates
-          // xvals << 9.261977, -2.06803, -19.6663, -36.868, -51.6263, -66.3482;
-          // // y waypoint coordinates
-          // yvals << 5.17, -2.25, -15.306, -29.46, -42.85, -57.6116;
-          // int size = ptsx.size();
-          // Eigen::VectorXd xvals(size), yvals(size);
-          // for (int i=0; i<ptsx.size(); ++i) {
-          //   xvals << ptsx[i];
-          // }
-          // for (int i=0; i<ptsy.size(); ++i) {
-          //   yvals << ptsy[i];
-          // } 
-          // Eigen::VectorXd xvals = Eigen::VectorXd::Map(ptsx.data(), ptsx.size());
-          // Eigen::VectorXd yvals = Eigen::VectorXd::Map(ptsy.data(), ptsy.size());
-          // cout << "vectorxd: ";
-          // for (int i = 0; i < xvals.size(); ++i){
-          //   cout << xvals[i] << "-";
-          // }
-
-          // // Eigen::VectorXd xvals(ptsx.data());
-          // // Eigen::VectorXd yvals(ptsy.data());
-          // auto coeffs = polyfit(xvals, yvals, 3);
-          // double cte = polyeval(coeffs, px) - py;
-          // double epsi = psi - atan(coeffs[1]);
-          // // double epsi = - atan(coeffs[1]);
-          // cout << "cte/epsi" << cte << "/" << epsi << endl;
-          // // init state
           
-          // Eigen::VectorXd state(6);
-          // state << px, py, psi, v, cte, epsi;
-          // auto vars = mpc.Solve(state, coeffs);
+          Eigen::VectorXd xvals = Eigen::VectorXd::Map(ptsx.data(), ptsx.size());
+          Eigen::VectorXd yvals = Eigen::VectorXd::Map(ptsy.data(), ptsy.size());
+          auto coeffs = polyfit(xvals, yvals, 3);
 
+          cout << "coeffs" << coeffs << endl;
 
-          // /*
-          // * TODO: Calculate steering angle and throttle using MPC.
-          // *
-          // * Both are in between [-1, 1].
-          // *
-          // */
-          vector<double> waypoints_x;
-          vector<double> waypoints_y;
-
-          // transform waypoints to be from car's perspective
-          // this means we can consider px = 0, py = 0, and psi = 0
-          // greatly simplifying future calculations
-          for (int i = 0; i < ptsx.size(); i++) {
-            double dx = ptsx[i] - px;
-            double dy = ptsy[i] - py;
-            waypoints_x.push_back(dx * cos(-psi) - dy * sin(-psi));
-            waypoints_y.push_back(dx * sin(-psi) + dy * cos(-psi));
-          }
-
-          double* ptrx = &waypoints_x[0];
-          double* ptry = &waypoints_y[0];
-          Eigen::Map<Eigen::VectorXd> waypoints_x_eig(ptrx, 6);
-          Eigen::Map<Eigen::VectorXd> waypoints_y_eig(ptry, 6);
-
-          auto coeffs = polyfit(waypoints_x_eig, waypoints_y_eig, 3);
-          double cte = polyeval(coeffs, 0);  // px = 0, py = 0
-          double epsi = -atan(coeffs[1]);  // p
-
-          double steer_value = j[1]["steering_angle"];
-          double throttle_value = j[1]["throttle"];
-
+          double cte = polyeval(coeffs, px) - py;
+          double epsi = psi - atan(coeffs[1]);
+          // cout << "cte/epsi" << cte << "/" << epsi << endl;
+          
           Eigen::VectorXd state(6);
-          state << 0, 0, 0, v, cte, epsi;
+          state << px, py, psi, v, cte, epsi;
           auto vars = mpc.Solve(state, coeffs);
+
+          // // /*
+          // // * TODO: Calculate steering angle and throttle using MPC.
+          // // *
+          // // * Both are in between [-1, 1].
+          // // *
+          // // */
+          // vector<double> waypoints_x;
+          // vector<double> waypoints_y;
+
+          // // transform waypoints to be from car's perspective
+          // // this means we can consider px = 0, py = 0, and psi = 0
+          // // greatly simplifying future calculations
+          // for (int i = 0; i < ptsx.size(); i++) {
+          //   double dx = ptsx[i] - px;
+          //   double dy = ptsy[i] - py;
+          //   waypoints_x.push_back(dx * cos(-psi) - dy * sin(-psi));
+          //   waypoints_y.push_back(dx * sin(-psi) + dy * cos(-psi));
+          // }
+
+          // double* ptrx = &waypoints_x[0];
+          // double* ptry = &waypoints_y[0];
+          // Eigen::Map<Eigen::VectorXd> waypoints_x_eig(ptrx, 6);
+          // Eigen::Map<Eigen::VectorXd> waypoints_y_eig(ptry, 6);
+
+          // auto coeffs = polyfit(waypoints_x_eig, waypoints_y_eig, 3);
+          // double cte = polyeval(coeffs, 0);  // px = 0, py = 0
+          // double epsi = -atan(coeffs[1]);  // p
+
+          // double steer_value = j[1]["steering_angle"];
+          // double throttle_value = j[1]["throttle"];
+
+          // Eigen::VectorXd state(6);
+          // state << 0, 0, 0, v, cte, epsi;
+          // auto vars = mpc.Solve(state, coeffs);
           // cout << vars << endl;
 
-          // double steer_value;
-          // double throttle_value;
+          double steer_value;
+          double throttle_value;
           steer_value = vars[0];
           throttle_value = vars[1];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
           // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
+          cout << "s/t" << steer_value << throttle_value << endl; 
           msgJson["steering_angle"] = steer_value/(deg2rad(25));
           msgJson["throttle"] = throttle_value;
 
