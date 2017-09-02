@@ -65,6 +65,22 @@ Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
   return result;
 }
 
+// fixme: 
+void tranlateCoordinates(double px, 
+                        double py, 
+                        double psi,
+                        std::vector<double> ptsx,
+                        std::vector<double> ptsy,
+                        std::vector<double>& waypoints_x,
+                        std::vector<double>& waypoints_y) {
+    for (int i = 0; i < ptsx.size(); i++) {
+      double dx = ptsx[i] - px;
+      double dy = ptsy[i] - py;
+      waypoints_x.push_back(dx * cos(-psi) - dy * sin(-psi));
+      waypoints_y.push_back(dx * sin(-psi) + dy * cos(-psi));
+    }  
+}
+
 int main() {
   uWS::Hub h;
 
@@ -99,40 +115,54 @@ int main() {
           *
           */
 
-          vector<double> waypoints_x;
-          vector<double> waypoints_y;
+          //fixme, below is mywork:
+          // i am using directly the cartisian coordinates to fit the three degree polynomial; why do we needs to transfer the coordinates to car's perspeictive? is this a mandatory? or this is a nice-to-have operation? my guess is that if use the cartisian coordinates, the fitted polynomial may have much error. to verify this, draw and compare the fitted line. 
+          
+          /*
+          Eigen::VectorXd xvals = Eigen::VectorXd::Map(ptsx.data(), ptsx.size());
+          Eigen::VectorXd yvals = Eigen::VectorXd::Map(ptsy.data(), ptsy.size());
+          auto coeffs = polyfit(xvals, yvals, 3);
+          
+          // calculate the cte, the fitted point minus the real value
+          double cte = polyeval(coeffs, px) - py;
+          
+          // calcualte the error of psi
+          double epsi = psi - atan(coeffs[1]);
+          */
 
-          // transform waypoints to be from car's perspective
-          // this means we can consider px = 0, py = 0, and psi = 0
-          // greatly simplifying future calculations
-          for (int i = 0; i < ptsx.size(); i++) {
-            double dx = ptsx[i] - px;
-            double dy = ptsy[i] - py;
-            waypoints_x.push_back(dx * cos(-psi) - dy * sin(-psi));
-            waypoints_y.push_back(dx * sin(-psi) + dy * cos(-psi));
-          }
-
+          vector<double> waypoints_x, waypoints_y;
+          tranlateCoordinates(px, py, psi, ptsx, ptsy, waypoints_x, waypoints_y);
           double* ptrx = &waypoints_x[0];
           double* ptry = &waypoints_y[0];
+          // todo: get familiar with Eigen vector operation. 
           Eigen::Map<Eigen::VectorXd> waypoints_x_eig(ptrx, 6);
           Eigen::Map<Eigen::VectorXd> waypoints_y_eig(ptry, 6);
-
+          // fit the three degree polynomial.
           auto coeffs = polyfit(waypoints_x_eig, waypoints_y_eig, 3);
-          double cte = polyeval(coeffs, 0);  // px = 0, py = 0
-          double epsi = -atan(coeffs[1]);  // p
+          double cte = polyeval(coeffs, 0);  
+          double epsi = -atan(coeffs[1]); 
 
-          double steer_value = j[1]["steering_angle"];
-          double throttle_value = j[1]["throttle"];
+          // fixme, mywork, 
+          // Eigen::VectorXd state(6);
+          // state << px, py, psi, v, cte, epsi;
+          // auto vars = mpc.Solve(state, coeffs);
+          // double steer_value = vars[0];
+          // double throttle_value = vars[1];
 
           Eigen::VectorXd state(6);
           state << 0, 0, 0, v, cte, epsi;
           auto vars = mpc.Solve(state, coeffs);
-          steer_value = vars[0];
-          throttle_value = vars[1];
+          double steer_value = vars[0];
+          double throttle_value = vars[1];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
           // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
+
+          //fixme, mywork
+          // msgJson["steering_angle"] = steer_value;
+          // msgJson["throttle"] = throttle_value;
+
           msgJson["steering_angle"] = steer_value/(deg2rad(25));
           msgJson["throttle"] = throttle_value;
 
@@ -143,7 +173,11 @@ int main() {
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
 
-          for (int i = 2; i < vars.size(); i ++) {
+          //fixme, mywork
+          // mpc_x_vals.push_back(vars[0]);
+          // mpc_y_vals.push_back(vars[1]);
+
+          for (int i = 2; i < vars.size(); i++) {
             if (i%2 == 0) {
               mpc_x_vals.push_back(vars[i]);
             }
@@ -162,6 +196,10 @@ int main() {
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
 
+          //fixme, mywork:
+          // next_x_vals.push_back(vars[0]);
+          // next_y_vals.push_back(polyeval(coeffs, vars[0]));
+          
           for (double i = 0; i < 100; i += 3){
             next_x_vals.push_back(i);
             next_y_vals.push_back(polyeval(coeffs, i));
