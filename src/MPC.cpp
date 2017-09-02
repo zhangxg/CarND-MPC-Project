@@ -9,6 +9,20 @@ using CppAD::AD;
 size_t N = 10;
 double dt = 0.1;
 
+// the car can not drive all all, the cost too large
+// size_t N = 100;
+// double dt = 1;
+
+// the car drives the first half loop, with great osscilation, 
+// and then fails, with very large cost: Cost 1.88015e+06 
+// size_t N = 20;
+// double dt = 0.1;
+
+// can not drive, the cost quickly grows to Cost 1.29856e+06
+// size_t N = 3;
+// double dt = 0.1;
+
+
 // This value assumes the model presented in the classroom is used.
 //
 // It was obtained by measuring the radius formed by running the vehicle in the
