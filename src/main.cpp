@@ -9,6 +9,17 @@
 #include "MPC.h"
 #include "json.hpp"
 
+/**
+Note:
+While implement this model, I used many code form [Jeremy's work](https://github.com/jeremy-shannon/CarND-MPC-Project), includes:
+1. transfer to the car's coornidates;
+2. the cost function definition;
+3. the prediction points to draw the yellow and green lines in the simulator;
+4. the final tunned parameters;
+
+I included my solution hereby, to compare my result and his, in order to get a better idea how this model work.  
+*/
+
 // for convenience
 using json = nlohmann::json;
 

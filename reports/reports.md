@@ -129,4 +129,8 @@ In reality, the car's mechanics may have latency to respond to the actuator; to 
 
 yes, the MPC models provided can drive the car for a full loop, tires without leaving the track. 
 
+## Thoughts and future work
+It has been three months since I started the term 2 in June; compared to term one, which requires a lot of parameter tunning, this one is much more logical from the mathematical perspective, but it doesn't mean the projects are easy to complete. The most challenging part is from the c++ programming, especially the MPC project, one difficulty is the manipulation of the libraries and the other is the debugging skills. So, to better complete this degree, I really need to improve my c++ programming skills. 
+
+
 
