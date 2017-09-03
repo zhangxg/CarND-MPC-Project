@@ -98,6 +98,10 @@ int main() {
   // MPC is initialized here!
   MPC mpc;
 
+  // const double latency = 0.1;  // 100 ms
+  // const double Lf = 2.67;
+  // double latency = 0.1;   // set the latency to 0.1
+
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -118,6 +122,9 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+          double steer_angle  = j[1]["steering_angle"];
+
+          // double a = j[1]["throttle"];
 
           /*
           * TODO: Calculate steering angle and throttle using MPC.
@@ -161,7 +168,14 @@ int main() {
           // double throttle_value = vars[1];
 
           Eigen::VectorXd state(6);
-          state << 0, 0, 0, v, cte, epsi;
+          // state << 0, 0, 0, v, cte, epsi;    
+
+          const double latency = 0.1;  // 100 ms
+          const double Lf = 2.67;
+          px = v * latency;
+          psi = - v * steer_angle / Lf * latency;
+          state << px, 0, psi, v, cte, epsi;
+
           auto vars = mpc.Solve(state, coeffs);
           double steer_value = vars[0];
           double throttle_value = vars[1];

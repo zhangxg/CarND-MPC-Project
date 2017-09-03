@@ -8,6 +8,7 @@ using CppAD::AD;
 // TODO: Set the timestep length and duration
 size_t N = 10;
 double dt = 0.1;
+double latency = 0.1;
 
 // the car can not drive all all, the cost too large
 // size_t N = 100;
@@ -135,8 +136,15 @@ class FG_eval {
     //   fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
     // }
     for (int i = 0; i < N; i++) {
-      fg[0] += 3000*CppAD::pow(vars[cte_start + i], 2);
-      fg[0] += 3000*CppAD::pow(vars[epsi_start + i], 2);
+      //review: In my experience, increasing the penalty for CTE tends to lead to a more unstable control behavior because the car tends to overshoot the waypoint trajectory and might start to oscillate.
+
+      // fg[0] += 3000*CppAD::pow(vars[cte_start + i], 2);
+      // fg[0] += 3000*CppAD::pow(vars[epsi_start + i], 2);
+      // fg[0] += CppAD::pow(vars[v_start + i] - ref_v, 2);
+
+
+      fg[0] += CppAD::pow(vars[cte_start + i], 2);
+      fg[0] += CppAD::pow(vars[epsi_start + i], 2);
       fg[0] += CppAD::pow(vars[v_start + i] - ref_v, 2);
     }
 
@@ -147,10 +155,18 @@ class FG_eval {
     //   fg[0] += CppAD::pow(vars[a_start + t], 2);
     // }
     for (int i = 0; i < N - 1; i++) {
-      fg[0] += 5*CppAD::pow(vars[delta_start + i], 2);
-      fg[0] += 5*CppAD::pow(vars[a_start + i], 2);
-      // try adding penalty for speed + steer
-      fg[0] += 700*CppAD::pow(vars[delta_start + i] * vars[v_start+i], 2);
+      //review: In my experience, setting a higher penalty factor for the steering angle gap leads to a more stable control behavior, especially at higher velocities.
+      // fg[0] += 5*CppAD::pow(vars[delta_start + i], 2);
+      // fg[0] += 5*CppAD::pow(vars[a_start + i], 2);
+      // // try adding penalty for speed + steer
+
+
+      //review: You can achieve something similar by carefully tuning the penalty factors of the cost function. Then the car would probably not slow down so much in the turns.
+      // fg[0] += 700*CppAD::pow(vars[delta_start + i] * vars[v_start+i], 2);
+
+
+      fg[0] += 700*CppAD::pow(vars[delta_start + i], 2);
+      fg[0] += 10*CppAD::pow(vars[a_start + i], 2);
     }
 
     // Minimize the value gap between sequential actuations.
@@ -160,8 +176,12 @@ class FG_eval {
     //   fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     // }
     for (int i = 0; i < N - 2; i++) {
-      fg[0] += 200*CppAD::pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
-      fg[0] += 10*CppAD::pow(vars[a_start + i + 1] - vars[a_start + i], 2);
+      // fg[0] += 200*CppAD::pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
+      // fg[0] += 10*CppAD::pow(vars[a_start + i + 1] - vars[a_start + i], 2);
+
+      fg[0] += 10000*CppAD::pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
+      fg[0] += CppAD::pow(vars[a_start + i + 1] - vars[a_start + i], 2);
+
     }
 
     //
@@ -187,24 +207,26 @@ class FG_eval {
 
     // The rest of the constraints
     for (int t = 1; t < N; t++) {
-      AD<double> x1 = vars[x_start + t];
       AD<double> x0 = vars[x_start + t - 1];
-      AD<double> y1 = vars[y_start + t];
       AD<double> y0 = vars[y_start + t - 1];
-      AD<double> psi1 = vars[psi_start + t];
       AD<double> psi0 = vars[psi_start + t - 1];
-      AD<double> v1 = vars[v_start + t];
       AD<double> v0 = vars[v_start + t - 1];
-      AD<double> cte1 = vars[cte_start + t];
       AD<double> cte0 = vars[cte_start + t - 1];
-      AD<double> epsi1 = vars[epsi_start + t];
       AD<double> epsi0 = vars[epsi_start + t - 1];
+                        
+      AD<double> x1 = vars[x_start + t];
+      AD<double> y1 = vars[y_start + t];
+      AD<double> psi1 = vars[psi_start + t];
+      AD<double> v1 = vars[v_start + t];
+      AD<double> cte1 = vars[cte_start + t];
+      AD<double> epsi1 = vars[epsi_start + t];
+
       AD<double> a = vars[a_start + t - 1];
       AD<double> delta = vars[delta_start + t - 1];
-      if (t > 1) {   // use previous actuations (to account for latency)
-        a = vars[a_start + t - 2];
-        delta = vars[delta_start + t - 2];
-      }
+      // if (t > 1) {   // use previous actuations (to account for latency)
+      //   a = vars[a_start + t - 2];
+      //   delta = vars[delta_start + t - 2];
+      // }
       AD<double> f0 = coeffs[0] + coeffs[1] * x0 + coeffs[2] * CppAD::pow(x0, 2) + coeffs[3] * CppAD::pow(x0, 3);
       AD<double> psides0 = CppAD::atan(coeffs[1] + 2 * coeffs[2] * x0 + 3 * coeffs[3] * CppAD::pow(x0, 2));
 
@@ -222,6 +244,12 @@ class FG_eval {
       fg[1 + v_start + t] = v1 - (v0 + a * dt);
       fg[1 + cte_start + t] = cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt));
       fg[1 + epsi_start + t] = epsi1 - ((psi0 - psides0) - v0/Lf * delta * dt);
+      // fg[1 + x_start + t] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt * latency);
+      // fg[1 + y_start + t] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
+      // fg[1 + psi_start + t] = psi1 - (psi0 - v0/Lf * delta * dt * latency);
+      // fg[1 + v_start + t] = v1 - (v0 + a * dt * latency);
+      // fg[1 + cte_start + t] = cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt * latency));
+      // fg[1 + epsi_start + t] = epsi1 - ((psi0 - psides0) - v0/Lf * delta * dt);
     }
   }
 };

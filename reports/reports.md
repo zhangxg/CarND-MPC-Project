@@ -1,4 +1,3 @@
-
 ## Model Predictive Control
 
 Here I will explain how I implemented the MPC model by list the answering the [rubric points](https://review.udacity.com/#!/rubrics/896/view)
@@ -133,4 +132,5 @@ yes, the MPC models provided can drive the car for a full loop, tires without le
 It has been three months since I started the term 2 in June; compared to term one, which requires a lot of parameter tunning, this one is much more logical from the mathematical perspective, but it doesn't mean the projects are easy to complete. The most challenging part is from the c++ programming, especially the MPC project, one difficulty is the manipulation of the libraries and the other is the debugging skills. So, to better complete this degree, I really need to improve my c++ programming skills. 
 
 
-
+1. speed up the build processing;
+2. how to define the cost factors, what's the relationship between the penalties and the manouviour? 
