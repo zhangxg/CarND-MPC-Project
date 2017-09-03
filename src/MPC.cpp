@@ -35,8 +35,7 @@ double latency = 0.1;
 //
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
-
-double ref_v = 70;
+const double ref_v = 70;
 size_t x_start = 0;
 size_t y_start = x_start + N;
 size_t psi_start = y_start + N;
@@ -281,14 +280,16 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vars[i] = 0;
   }
   // Set the initial variable values
-  double x, y, psi, v, cte, epsi;
-  x = state[0];
-  y = state[1];
-  psi = state[2];
-  v = state[3];
-  cte = state[4];
-  epsi = state[5];
+  //review: It is a good idea to define constants that will not or should not change in the current scope as const throughout your code. This helps to prevent bugs and will help the compiler to optimize the code during compilation.
+  // double x, y, psi, v, cte, epsi;
+  const double x = state[0];
+  const double y = state[1];
+  const double psi = state[2];
+  const double v = state[3];
+  const double cte = state[4];
+  const double epsi = state[5];
 
+  //I think you do not need to do this because you enforce the constraints for the first time step below.
   vars[x_start] = x;
   vars[y_start] = y;
   vars[psi_start] = psi;

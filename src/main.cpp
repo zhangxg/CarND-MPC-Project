@@ -121,6 +121,8 @@ int main() {
           double px = j[1]["x"];
           double py = j[1]["y"];
           double psi = j[1]["psi"];
+          
+          //I would strongly suggest converting the velocity to m/s and doing all subsequent computations with this value.
           double v = j[1]["speed"];
           double steer_angle  = j[1]["steering_angle"];
 
@@ -168,6 +170,10 @@ int main() {
           // double throttle_value = vars[1];
 
           Eigen::VectorXd state(6);
+          //You need to predict the state 100ms into the future before you send it to the solver in order to compensate for the latency. You can do this by utilizing the update equations and model errors.
+          // When implementing this you should pay attention to:
+          // The sign of the steering angle delta in your implementation.
+          // Velocity, as reported by the simulator, is measured in mph, while the waypoints are measured in meters.
           // state << 0, 0, 0, v, cte, epsi;    
 
           const double latency = 0.1;  // 100 ms
@@ -177,8 +183,8 @@ int main() {
           state << px, 0, psi, v, cte, epsi;
 
           auto vars = mpc.Solve(state, coeffs);
-          double steer_value = vars[0];
-          double throttle_value = vars[1];
+          const double steer_value = vars[0];
+          const double throttle_value = vars[1];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.

@@ -108,25 +108,30 @@ void tranlateCoordinates(double px,
 }
 ```
 
-This transformation affects the initial state. 
-```
-state << 0, 0, 0, v, cte, epsi;
-```
-
 
 ### The student implements Model Predictive Control that handles a 100 millisecond latency. Student provides details on how they deal with latency.
 
-In reality, the car's mechanics may have latency to respond to the actuator; to simulate this, I let the thread slept for 100 milliseconds before sending back the control parameters back to the simulator, as illustrated by the following code:
+In reality, there is a latency between the controller sending and car receiving the commands, this latency may lead to unreliable decisions. To overcome this, the state sent to the solver should be predicted with latency time considered. I draw a simple picture to illustriate this: 
+
+![considering latency](./images/latency_explained.png)
+
+A thorough description of the prediction update can be found in [this discussion thread](https://discussions.udacity.com/t/how-to-incorporate-latency-into-the-model/257391/63).
+
+I handled the latency with the following code in `main.cpp`
 
 ```
- this_thread::sleep_for(chrono::milliseconds(100));
- ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+const double latency = 0.1;  // 100 ms
+const double Lf = 2.67;
+px = v * latency;
+psi = - v * steer_angle / Lf * latency;
+state << px, 0, psi, v, cte, epsi;
+
 ```
 
 
 ### The vehicle must successfully drive a lap around the track.
 
-yes, the MPC models provided can drive the car for a full loop, tires without leaving the track. 
+yes, the car can drive one loop, see the video in `./videos/driving.mov`
 
 ## Thoughts and future work
 It has been three months since I started the term 2 in June; compared to term one, which requires a lot of parameter tunning, this one is much more logical from the mathematical perspective, but it doesn't mean the projects are easy to complete. The most challenging part is from the c++ programming, especially the MPC project, one difficulty is the manipulation of the libraries and the other is the debugging skills. So, to better complete this degree, I really need to improve my c++ programming skills. 
