@@ -120,11 +120,23 @@ A thorough description of the prediction update can be found in [this discussion
 I handled the latency with the following code in `main.cpp`
 
 ```
-const double latency = 0.1;  // 100 ms
-const double Lf = 2.67;
-px = v * latency;
-psi = - v * steer_angle / Lf * latency;
-state << px, 0, psi, v, cte, epsi;
+double delta = - steer_angle;
+double a = 0;  // we assume the acceleration are zero wiht very small time span. 
+
+// after the coornidate transfer, the following are zeors.
+px = 0;
+py = 0;
+psi = 0;
+
+// update the predicated the state after latency time. 
+px += v * cos(psi) * latency;   // = v * latency
+py += v * sin(psi) * latency;   // = 0
+psi += v * delta * latency / Lf;   // v * (-steer_angel) * latency / Lf;
+epsi += psi;   // = epsi + 0
+cte += v * sin(epsi) * latency; //
+v += a * latency;   // = 0,
+
+state << px, py, psi, v, cte, epsi;
 
 ```
 

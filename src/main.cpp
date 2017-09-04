@@ -125,7 +125,6 @@ int main() {
           //I would strongly suggest converting the velocity to m/s and doing all subsequent computations with this value.
           double v = j[1]["speed"];
           double steer_angle  = j[1]["steering_angle"];
-
           // double a = j[1]["throttle"];
 
           /*
@@ -178,11 +177,31 @@ int main() {
 
           const double latency = 0.1;  // 100 ms
           const double Lf = 2.67;
-          px = v * latency;
-          psi = - v * steer_angle / Lf * latency;
-          state << px, 0, psi, v, cte, epsi;
+
+          // px = v * latency;
+          // psi = - v * steer_angle / Lf * latency;
+          // state << px, 0, 0, v, cte, epsi;
+
+          double delta = - steer_angle;
+          double a = 0;  // we assume the acceleration are zero wiht very small time span. 
+
+          // after the coornidate transfer, the following are zeors.
+          px = 0;
+          py = 0;
+          psi = 0;
+
+          // update the predicated the state after latency time. 
+          px += v * cos(psi) * latency;   // = v * latency
+          py += v * sin(psi) * latency;   // = 0
+          psi += v * delta * latency / Lf;   // v * (-steer_angel) * latency / Lf;
+          epsi += psi;   // = epsi + 0
+          cte += v * sin(epsi) * latency; //
+          v += a * latency;   // = 0,
+
+          state << px, py, psi, v, cte, epsi;
 
           auto vars = mpc.Solve(state, coeffs);
+
           const double steer_value = vars[0];
           const double throttle_value = vars[1];
 

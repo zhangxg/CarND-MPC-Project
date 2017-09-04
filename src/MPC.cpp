@@ -163,9 +163,11 @@ class FG_eval {
       //review: You can achieve something similar by carefully tuning the penalty factors of the cost function. Then the car would probably not slow down so much in the turns.
       // fg[0] += 700*CppAD::pow(vars[delta_start + i] * vars[v_start+i], 2);
 
-
       fg[0] += 700*CppAD::pow(vars[delta_start + i], 2);
-      fg[0] += 10*CppAD::pow(vars[a_start + i], 2);
+      // the car drives at speed about 70, but can only drive one loop if without this acceleration penalty;
+      // add penalty 5-10, the car's speed is about 66, but can drive longer time. 
+      // fg[0] += 10*CppAD::pow(vars[a_start + i], 2);
+      fg[0] += 5*CppAD::pow(vars[a_start + i], 2);
     }
 
     // Minimize the value gap between sequential actuations.
@@ -180,7 +182,6 @@ class FG_eval {
 
       fg[0] += 10000*CppAD::pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
       fg[0] += CppAD::pow(vars[a_start + i + 1] - vars[a_start + i], 2);
-
     }
 
     //
